@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>TheGameGameGameGameGameGameGame</title>
+</head>
+<body>
+<canvas id="canvasForTheGame"></canvas>
+<script> 
+	//Animation format picker
+	var requestAnimationFrame = window.requestAnimationFrame ||	window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+	window.requestAnimationFrame = requestAnimationFrame;
+	
+	//Game Display vars
+	var canvas = document.getElementById("canvasForTheGame");
+	const width  = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+	const height = window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight;
+	var ctx = canvas.getContext("2d");
+	canvas.width = width;
+	canvas.height = height;
+	//Player vars
+	var player = 
+	{
+		x: 950,
+		y: 800,
+		width: 200,
+		height: 200,
+		velX: 0,
+		velY: 0,
+		goatee: 0,
+		health: 100,
+		energy: 100,
+		hunger: 100,
+		apples: 1,
+		day: 1,
+		level: 1
+	};
+	
+	var TogglePlayerInfo = false;
+	
+	var gameState = "startMenu";
+	
+	//Hunger Vars
+	var HungerDefaultTime = 10;
+	var HugerCurrentTime = 10;
+	var hStartTimeMS = 0;
+	
+	//Movement Vars	
+	var keys = [];
+	var friction = 0.8;
+	var KeyTypePressed = "";
+	var LastKeyPressed = "";
+	
+	//Player Animation Vars
+	var isKeyPressed = false;
+	var startTimeMS = 0;
+    var frameX = 0;
+    var frameXMax = 3;
+    var frameY = 0;
+    var frameYMax = 3;
+    var frame = 0;
+    var frameMax = 3;
+    var frameTimer = 0.05;
+    var frameTimeMax = 0.1;	
+    var spriteWidth = 128;
+    var spriteHeight = 128;
+    var PlayerImage = new Image();
+	
+	//Boxes
+	var imgCrate = new Image();
+	var boxes = [];
+	
+	//Main  Menu UI Vars
+	var ButtonX = [950, 950, 950];
+	var ButtonY = [500, 650, 800];
+	var ButtonWidth = [400,400,400];
+	var ButtonHeight = [100,100,100];
+	
+	var MouseX;
+	var MouseY;
+	var PlayImage = new Image();
+	var PlayMaybe = new Image();
+	var ShouldPlay = new Image();
+	var GoatSimTitle = new Image();
+	
+	var ButtonClicked = 0;
+	
+	//Player UI Vars
+	var PlayerBar = new Image();
+	var Restart = new Image();
+	
+	//World Generator Vars
+	var Grass = new Image();
+	var Path = new Image();
+	var Building_1 = new Image();
+	var Building_2 = new Image();
+	
+	//Buildings Vars
+	var NumberOfBuildings = 5;
+	var BuildingSpawns = [];
+	var BuildingNames = ["Shop","Tavern", "Home"]
+	var EnterBuilding = "";
+	var TouchingDoor = false;
+	
+	var shopWorkAmount = 0;
+	var barFightAmount = 0;
+	
+	//Building Images Vars
+	var Tavern = new Image();
+	var Home = new Image();
+	var Shop = new Image();
+	var Died = new Image();
+	
+	//Button vars
+	var workKeyPress = false;
+	var buyKeyPress = false;
+	var sleepKeyPress = false;
+	var eatKeyPress = false;
+	var barFightKeyPress = false;
+	var buyApplePress = false;
+	
+	//Building UI
+	var ExitButton = new Image();
+	var SleepButton = new Image();
+	var WorkButton = new Image();
+	var BarFightButton = new Image();
+	var BuyAppleButton = new Image();
+	
+	//Object Vars
+	var TreeFull = new Image();
+	var TreeEmpty = new Image();
+	
+	var Tree = []; //Height, Width, X, Y
+	var TreeHasFruit = []; //HasFruit(bool)
+	var TouchingTree = false;
+	var PickingTree = 0;
+	var FruitTimers = []; //Time
+	
+	//Audio Vars
+	var joySoundtrack = new Audio('Joy.WAV');
+	var happySoundtrack = new Audio('Happy.MP3');
+	var eatAudio = new Audio('Eat.WAV');
+	
+	window.addEventListener("load", function ()
+	{
+		init();
+		ShowMenu();
+	});
+	
+	document.body.addEventListener("keydown", function (e) 
+	{
+		keys[e.keyCode] = true;
+		isKeyPressed = true;
+	});
+		
+	document.body.addEventListener("keyup", function (e) 
+	{
+		keys[e.keyCode] = false;
+		isKeyPressed = false;
+	});	
+	
+	function init() //This function is to load all the assets used within goat sim 2020
+	{
+		//Main UI Images
+		PlayImage.src = 'Play.png';
+		PlayMaybe.src = 'PlayMaybe.png';
+		ShouldPlay.src = 'ShouldPlay.png';
+		GoatSimTitle.src = 'GoatSimTitle.png';
+		Died.src = 'Died.png';
+		Restart.src = 'Restart.png';
+		
+		//Main Game Images
+		PlayerImage.src = 'goat.png';
+		Grass.src = 'Grass.png';
+		Building_1.src = 'Building_1.png';
+		Building_2.src = 'Building_2.png';
+		
+		//Buildings
+		Tavern.src = 'Tavern.png';
+		Home.src = 'Home.JPG';
+		Shop.src = 'Shop.png';
+		
+		//Building UI
+		ExitButton.src = 'Back.png';
+		SleepButton.src = 'Sleep.png';
+		WorkButton.src = 'Work.png';
+		BarFightButton.src = 'BarFight.png';
+		BuyAppleButton.src = 'Buy Apple.png';
+		
+		//Objects 
+		TreeFull.src = 'FullTree.png';
+		TreeEmpty.src = 'EmptyTree.png';
+		
+		//Collectables
+		
+		//Player UI Images
+		PlayerBar.src = 'PlayerBar.png';
+		
+		canvas.width = width;
+		canvas.height = height;
+		
+		ButtonClicked = 0;
+	}; 
+	
+	function StartGame()
+	{	
+		ResetPlayer();
+		
+		gameState = "mainGame";//mainGame Home Tavern Shop Dead
+		
+		joySoundtrack.loop = true;
+		joySoundtrack.volume = 0.25;
+		joySoundtrack.play();
+		
+		update();
+	}
+	
+	function update() 
+	{	
+		
+		//This section handles the input from each state.
+		if(gameState == "mainGame")
+		{
+			//Movement Inputs
+			if (keys[40] || keys[83]) {
+				if(player.y<(canvas.height - player.height))
+				{
+					player.velY++;
+					KeyTypePressed = "Down";
+					LastKeyPressed = "Down";
+				};
+			}
+			if (keys[38] || keys[87]) {
+				if(player.y> -30)
+				{
+					player.velY--;
+					KeyTypePressed = "Top";
+					LastKeyPressed = "Top";
+				};
+			}
+			if (keys[39] || keys[68]) {
+				if(player.x < (canvas.width - player.width))
+				{
+					player.velX++;
+					KeyTypePressed = "Right";
+					LastKeyPressed = "Right";
+				};
+			}
+			if (keys[37] || keys[65]) {
+				if(player.x > - 30)
+				{
+					player.velX--;
+					KeyTypePressed = "Left";
+					LastKeyPressed = "Left";
+				};
+			}
+			
+			//Interaction Inputs
+			if (keys[69]) { //E to enter
+				if(TouchingDoor)
+				{
+					console.log("Opening : " + EnterBuilding);
+					gameState = EnterBuilding; //Changing the game state with the building name will switch the game 'scenes'
+				};
+				if(TouchingTree && TreeHasFruit[PickingTree].HasFruit && player.energy >= 5)
+				{
+					console.log("PickingTree : " + PickingTree);
+					TreeHasFruit[PickingTree].HasFruit = false;
+					FruitTimers[PickingTree].Time = 5;
+					player.apples++;
+					player.energy -= 5;
+				};
+			}
+			if (keys[81] && player.apples > 0) { //Q to enter
+				if(player.health < 100 || player.hunger < 100 && !eatKeyPress)
+				{	
+					eatKeyPress = true;
+					eatAudio.play();
+					player.health += 5;
+					player.hunger += 25;
+					player.apples--;
+					if(player.health > 100)
+					{
+						player.health = 100;
+					}
+					if(player.hunger > 100)
+					{
+						player.hunger = 100;
+					}
+				}
+			}
+			else
+			{
+				eatKeyPress = false;
+			}
+			if (keys[16]) { //i to enter
+				TogglePlayerInfo = true;
+			}
+			else{
+				TogglePlayerInfo = false;
+			}
+
+			//Movement Forces
+			player.velX *= friction;
+			player.velY *= friction;
+			player.x += player.velX;
+			player.y += player.velY;
+		}	
+		else
+		{
+			eatKeyPress = false;
+		}
+		if(gameState == "Tavern")
+		{
+			if (keys[66]) {
+				gameState = "mainGame";
+			}
+			
+			if (keys[70]) {
+				if(!barFightKeyPress) //This state allows us to has a on press down function to the key input.
+				{
+					if(player.energy >= 5 && player.health >= 10) //If the player meets this requirements then the fight will start.
+					{
+						barFightKeyPress = true;
+						player.energy -= 5;
+						player.health -= 10;
+						player.goatee += 5;
+						barFightAmount++;
+						if(barFightAmount >= 5)
+						{
+							player.level++;
+							barFightAmount = 0;
+						}
+						if(player.health <= 0)
+						{
+							KillPlayer();
+						}
+						ResetTrees();
+					}
+				}
+			}
+			else
+			{
+				barFightKeyPress = false;
+			}
+		}
+		else
+		{
+			barFightKeyPress = false
+		}
+		if(gameState == "Home")
+		{		
+			if (keys[66]) 
+			{
+				gameState = "mainGame";
+			}
+			if (keys[83] && player.energy < 100 ) 
+			{
+				if(!sleepKeyPress)
+				{
+					sleepKeyPress = true;
+					player.health += 10;
+					player.energy += 50;
+					player.day++;
+					if(player.energy > 100)
+					{
+						player.energy = 100;
+					}
+					if(player.health > 100)
+					{
+						player.health = 100;
+					}
+					ResetTrees();
+				}
+			}
+			else
+			{
+				sleepKeyPress = false;
+			};
+		}
+		else
+		{
+			sleepKeyPress = false;
+		}
+		
+		if(gameState == "Shop")
+		{		
+			if (keys[66]) {
+				gameState = "mainGame";
+			}
+			
+			if (keys[87]) 
+			{
+				if(!workKeyPress)
+				{
+					workKeyPress = true;
+					if(player.energy >= 10 && player.hunger > 10)
+					{	
+						shopWorkAmount++;
+						if(shopWorkAmount >= 5)
+						{	
+							shopWorkAmount = 0;
+							player.level++;
+						}
+						player.energy -= 10;
+						player.goatee += 10;
+						player.hunger -= 10;
+						console.log("Goatees : " + player.goatee);
+						
+					}				
+				}
+			}
+			else
+			{
+				workKeyPress = false;
+			}
+			
+			if(keys[65])
+			{
+				if(!buyApplePress)
+				{
+					if(player.goatee >= 5)
+					{
+						buyApplePress = true;
+						player.apples++;
+						player.goatee -= 5;
+					}
+				}
+			}
+			else
+			{
+				buyApplePress = false;
+			}
+		}
+		else
+		{
+			workKeyPress = false;
+			buyApplePress = false;
+		}
+		
+		if(gameState == "Dead")
+		{
+			if(keys[80])
+			{
+				ResetPlayer();
+				gameState == "mainGame";
+				StartGame();
+			}
+		}
+		
+		//Drawing Section
+		ctx.beginPath();
+		ctx.fill();
+			
+		//This is the render order of all the graphics within the game. 0 being the first 6 being the top
+		//Layer 0
+		GenerateGroundLayer();
+		//Layer 1
+		if(gameState == "mainGame")
+		{
+			GenerateBuildings();
+		}
+		//Layer 2
+		if(gameState == "mainGame")
+		{
+			GenerateObjects();
+		}		
+		//Layer 3
+		if(gameState == "mainGame")
+		{
+			PlayerMovement();
+		}
+		//Layer 4
+		//SpawnRandomCoins();
+		//Layer 5
+		if(gameState == "mainGame")
+		{
+			GeneratePlayerUI();
+		}
+		//Layer 6
+		GenerateMainGameUI();
+		
+		//Loop Update
+		requestAnimationFrame(update);
+
+		//Fruit Grow Timers
+		for(var i = 0; i < 3; i++)
+		{
+			if(TreeHasFruit[i].HasFruit == false)
+			{
+				FruitTimer(FruitTimers[i].Time, i);
+			}
+		}		
+		//Player Hunger Timer	
+		HungerTimer();		
+	}
+
+	function KillPlayer()
+	{
+		gameState = "Dead";	
+	}
+	
+	function ResetPlayer()
+	{		
+		TreeHasFruit.push
+		({
+			HasFruit: true
+		});
+		TreeHasFruit.push
+		({
+			HasFruit: true
+		});
+		TreeHasFruit.push
+		({
+			HasFruit: true
+		});
+		
+		FruitTimers.push
+		({
+			Time: 0
+		});
+		FruitTimers.push
+		({
+			Time: 0
+		});
+		FruitTimers.push
+		({
+			Time: 0
+		});
+		
+		player.x = 950;
+		player.y = 800;
+		player.width = 200;
+		player.height = 200;
+		player.velX = 0;
+		player.velY = 0;
+		player.goatee = 0;
+		player.health = 100;
+		player.energy = 100;
+		player.hunger = 100;
+		player.apples = 1;
+		player.day = 1;
+	}
+	
+	function ResetTrees()
+	{
+		for(var i = 0; i < 3;i++)
+		{
+			FruitTimers[i].Time = 0;
+			TreeHasFruit[i].HasFruit = true;
+		}
+	}
+	
+	function PlayerMovement()
+	{
+		switch(KeyTypePressed) 
+		{
+			case "Top":
+			PlayerAnimationFrame();
+			ctx.drawImage(PlayerImage, spriteWidth*frameX, spriteHeight * 0, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+			break;
+			
+			case "Down":
+			PlayerAnimationFrame();
+			ctx.drawImage(PlayerImage, spriteWidth*frameX, spriteHeight * 2, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+			break;
+			
+			case "Right":
+			PlayerAnimationFrame();
+			ctx.drawImage(PlayerImage, spriteWidth*frameX, spriteHeight * 3, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+			break;
+			
+			case "Left":
+			PlayerAnimationFrame();
+			ctx.drawImage(PlayerImage, spriteWidth*frameX, spriteHeight * 1, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+			break;
+			
+			default:
+			//Idle animations
+				switch(LastKeyPressed) 
+				{
+					case "Top":
+					ctx.drawImage(PlayerImage, spriteWidth * 2, spriteHeight * 0, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+					break;
+			
+					case "Down":
+					ctx.drawImage(PlayerImage, spriteWidth * 2, spriteHeight * 2, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+					break;
+			
+					case "Right":
+					ctx.drawImage(PlayerImage, spriteWidth * 2, spriteHeight * 3, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+					break;
+			
+					case "Left":
+					ctx.drawImage(PlayerImage, spriteWidth * 2, spriteHeight * 1, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+					break;
+					
+					default:
+					ctx.drawImage(PlayerImage, spriteWidth * 2, spriteHeight * 1, spriteWidth, spriteHeight, player.x, player.y, player.width, player.height);
+					break;
+				}
+			break;
+		}
+		KeyTypePressed = null;
+	};
+
+	//Physics Collision Check!
+	function colCheck(shapeA, shapeB) 
+	{
+		// get the vectors to check against
+		var vX = (shapeA.x + (shapeA.width / 3)) - (shapeB.x + (shapeB.width / 4)),
+			vY = (shapeA.y + (shapeA.height / 3)) - (shapeB.y + (shapeB.height / 4)),
+			// add the half widths and half heights of the objects
+			hWidths = (shapeA.width / 3) + (shapeB.width /4),
+			hHeights = (shapeA.height / 3) + (shapeB.height / 4),
+			colDir = null;
+
+		// if the x and y vector are less than the half width or half height, they we must be inside the object, causing a collision
+		if (Math.abs(vX) < hWidths && Math.abs(vY) < hHeights) {
+			// figures out on which side we are colliding (top, bottom, left, or right)
+			var oX = hWidths - Math.abs(vX),
+				oY = hHeights - Math.abs(vY);
+			if (oX >= oY) {
+				if (vY > 0) {
+					colDir = "t";
+					shapeA.y += oY;
+				} else {
+					colDir = "b";
+					shapeA.y -= oY;
+				}
+			} else {
+				if (vX > 0) {
+					colDir = "l";
+					shapeA.x += oX;
+				} else {
+					colDir = "r";
+					shapeA.x -= oX;
+				}
+			}
+		}
+		return colDir;
+	}
+	
+	//Main Menu Functions
+	function ShowMenu()
+	{	
+		PlayImage.addEventListener('load', e => 
+		{ 
+			ctx.drawImage(PlayImage, ButtonX[0], ButtonY[0], ButtonWidth[0], ButtonHeight[0]);
+		});
+		
+		PlayMaybe.addEventListener('load', e => 
+		{ 
+			ctx.drawImage(PlayMaybe, ButtonX[1], ButtonY[1], ButtonWidth[1], ButtonHeight[1]);
+		});
+		
+		ShouldPlay.addEventListener('load', e => 
+		{ 
+			ctx.drawImage(ShouldPlay, ButtonX[2], ButtonY[2], ButtonWidth[2], ButtonHeight[2]);
+		});
+		canvas.addEventListener("mousemove", checkPos);
+		canvas.addEventListener("mouseup", checkClick);
+		
+		//Loads the game title.
+		GoatSimTitle.onload = function () 
+		{
+			ctx.drawImage(this, 200, 0);
+		};
+		GoatSimTitle.src = "GoatSimTitle.png";
+		
+		ctx.font = "35px Comic Sans MS";
+		ctx.fillStyle = "black";
+		ctx.textAlign = "center";
+		ctx.fillText("Press Q to eat food, WASD to move and keys for tasks shown on screen", width/2, 250);
+	};
+	
+	HTMLCanvasElement.prototype.relMouseCoords = function(event)
+	{
+		var totalOffsetX = 0;
+		var totalOffsetY = 0;
+		var canvasX = 0;
+		var canvasY = 0;
+		var currentElement = this;
+		
+		do
+		{
+			totalOffsetX += currentElement.offsetLeft;
+			totalOffsetY += currentElement.offsetTop;
+		}
+		while(currentElement = currentElement.offsetParent)
+		canvasX = event.pageX - totalOffsetX;
+		canvasY = event.pageY - totalOffsetY;
+		
+		canvasX = Math.round(canvasX * (this.width / this.offsetWidth));
+		canvasY = Math.round(canvasY * (this.height / this.offsetHeight));
+		
+		return {x:canvasX, y:canvasY}
+	};
+	
+	function GenerateGroundLayer()
+	{
+		if(gameState == "Dead")
+		{
+			ctx.drawImage(Died, 0, 0, width, height);
+		}
+		if(gameState == "mainGame")
+		{
+			for (var i = 0; i < 5; i++) 
+			{
+				for(var x = 0; x < 3; x++)
+				{
+					ctx.drawImage(Grass, (512 * i), (512 * x), 512, 512);
+				}
+			}
+		}
+		
+		if(gameState == "Tavern")
+		{
+			ctx.drawImage(Tavern, 0, 0, width, height);
+		}
+		
+		if(gameState == "Home")
+		{
+			ctx.drawImage(Home, 0, 0, width, height);
+		}
+		
+		if(gameState == "Shop")
+		{
+			ctx.drawImage(Shop, 0, 0, width, height);
+		}
+	};
+	
+	function GenerateBuildings()
+	{
+		ctx.drawImage(Building_1, 100, 100);
+		BuildingSpawns.push
+		({
+			x: 100,
+			y: 100,
+			width: Building_1.width,
+			height: Building_1.height
+		});	
+		ctx.drawImage(Building_2, 300, 700);
+		BuildingSpawns.push
+		({
+			x: 300,
+			y: 700,
+			width: Building_1.width,
+			height: Building_1.height
+		});
+		ctx.drawImage(Building_1, 1000, 400);
+		BuildingSpawns.push
+		({
+			x: 1000,
+			y: 400,
+			width: Building_1.width,
+			height: Building_1.height
+		});
+		
+		//Collision Detection
+		for(var i = 0; i < 3; i++)
+		{
+			var dir = colCheck(player, BuildingSpawns[i]);
+			
+			if (dir === "l" || dir === "r") 
+			{
+				player.velX = 0;
+			} 
+			else if(dir === "t" || dir === "b")
+			{
+				player.velY = 0;
+			}
+		}
+		
+		//Door Detection
+		for(var i = 0; i < 3; i++)
+		{
+			if(TreeHasFruit[i].HasFruit == true)
+			{
+			}
+			var Door = {x: BuildingSpawns[i].x, y: BuildingSpawns[i].y + 100, width: BuildingSpawns[i].width, height: BuildingSpawns[i].height / 2};
+			var dir = colCheck(player, Door);
+			
+			if(dir != null)
+			{
+				ctx.drawImage(PlayerBar, player.x - 40,player.y + 20, 300, 50);
+				switch(i)
+				{
+					case 0:
+					//Shop
+					EnterBuilding = "Shop";
+					break;
+					
+					case 1:
+					//Tavern
+					EnterBuilding = "Tavern";					
+					break;
+					
+					case 2:
+					//Home
+					EnterBuilding = "Home";
+					break;
+				}
+				ctx.font = "20px Comic Sans MS";
+				ctx.fillStyle = "white";
+				ctx.textAlign = "center";
+				ctx.fillText("Enter [E] - " + EnterBuilding, player.x + 110, player.y + 50);
+				TouchingDoor = true;
+				break;
+			}
+			else
+			{
+				TouchingDoor = false;
+				EnterBuilding = "";			
+			}
+		}
+	};
+	
+	function GenerateObjects()
+	{
+		Tree.push
+		({
+			x: 1500,
+			y: 350,
+			width: 37 * 3,
+			height: 56  * 3,
+		});
+		Tree.push
+		({
+			x: 1750,
+			y: 800,
+			width: 37 * 3,
+			height: 56 * 3,
+		});
+				Tree.push
+		({
+			x: 1800,
+			y: 100,
+			width: 37 * 3,
+			height: 56 * 3,
+		});
+			
+		for(var i = 0; i < 3; i++)
+		{
+			if(TreeHasFruit[i].HasFruit == true)
+			{
+				ctx.drawImage(TreeFull, Tree[i].x, Tree[i].y, Tree[i].width, Tree[i].height);
+			}
+			else
+			{
+				ctx.drawImage(TreeEmpty, Tree[i].x, Tree[i].y, Tree[i].width, Tree[i].height);
+			}
+		}
+		//Tree Collision Non-trigger
+		for(var i = 0; i < 3; i++)
+		{
+			var dir = colCheck(player, Tree[i]);
+			
+			if (dir === "l" || dir === "r") 
+			{
+				player.velX = 0;
+			} 
+			else if(dir === "t" || dir === "b")
+			{
+				player.velY = 0;
+			}
+		}
+		
+		//Tree Trigger Collision
+		for(var i = 0; i < 3; i++)
+		{
+			if(TreeHasFruit[i].HasFruit == true)
+			{
+				var CurTree = {x: Tree[i].x - 50, y: Tree[i].y, width: Tree[i].width * 2, height: Tree[i].height * 1.2};
+				var dir = colCheck(player, CurTree);
+			
+				if(dir != null)
+				{
+					ctx.drawImage(PlayerBar, player.x - 40,player.y + 20, 300, 50);
+					PickingTree = i;
+					ctx.font = "20px Comic Sans MS";
+					ctx.fillStyle = "white";
+					ctx.textAlign = "center";
+					ctx.fillText("Pick [E] : -5 energy", player.x + 110, player.y + 50);
+					TouchingTree = true;
+					break;
+				}
+				else
+				{
+					TouchingTree = false;
+					PickingTree = 0;			
+				}
+			}
+		}
+	};
+	
+	//Main Game UI Functions
+	function GeneratePlayerUI()
+	{
+		if(TogglePlayerInfo)
+		{
+			ctx.drawImage(PlayerBar, player.x - 40,player.y - 60, 300, 150);
+			ctx.font = "20px Comic Sans MS";
+			ctx.fillStyle = "white";
+			ctx.textAlign = "center";
+			ctx.fillText("Health : " + player.health + " Goatees : " + player.goatee +"Ḡ", player.x + 100, player.y - 15);
+			ctx.fillText("Day : " + player.day, player.x, player.y + 15);
+			ctx.fillText("Level : " + player.level, player.x, player.y + 35);
+			ctx.fillText("Energy : " + player.energy, player.x + 100, player.y + 15);
+			ctx.fillText("Hunger : " + player.hunger, player.x + 100, player.y + 35);
+			ctx.fillText("Apples : x" + player.apples, player.x + 100, player.y + 55);			
+		}
+		else
+		{
+			ctx.drawImage(PlayerBar, player.x - 40,player.y - 20, 300, 50);
+			ctx.font = "20px Comic Sans MS";
+			ctx.fillStyle = "white";
+			ctx.textAlign = "center";
+			ctx.fillText("Health : " + player.health + " Goatees : " + player.goatee +"Ḡ", player.x + 110, player.y + 15);	
+		}
+	};
+	
+	function GenerateMainGameUI()
+	{
+		if(gameState == "Dead")
+		{
+			ctx.drawImage(Restart, width/2 - 200,height/2 + 50, 400, 100);
+		}
+		if(gameState == "mainGame")
+		{
+			for(var i = 0; i < 3; i++)
+			{
+				ctx.drawImage(PlayerBar, BuildingSpawns[i].x - 40, BuildingSpawns[i].y - 40, 250, 50);
+				ctx.font = "30px Comic Sans MS";
+				ctx.fillStyle = "white";
+				ctx.textAlign = "center";
+				var TextFill = BuildingNames[i];
+				ctx.fillText(TextFill, BuildingSpawns[i].x + 80, BuildingSpawns[i].y - 5);
+			}
+		}
+		if(gameState == "Tavern")
+		{
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.font = "35px Comic Sans MS";
+			ctx.fillStyle = "white";
+			ctx.textAlign = "center";
+			ctx.fillText("Health : " + player.health + " Goatees : " + player.goatee +"Ḡ", 350, 90);
+			ctx.fillText("Day : " + player.day, 150, 135);
+			ctx.fillText("Level : " + player.level, 150, 180);
+			ctx.fillText("Energy : " + player.energy, 350, 135);
+			ctx.fillText("Hunger : " + player.hunger, 350, 180);
+			ctx.fillText("Apples : x" + player.apples, 350, 225);
+			
+			ctx.fillText("Level up in " + (5 - barFightAmount) + " fights", width - 250, height - 400);
+			
+			ctx.drawImage(ExitButton, width - 450, height - 150, 400, 100);
+			ctx.drawImage(BarFightButton, width - 450, height - 300, 400, 100);
+		}
+		if(gameState == "Shop")
+		{
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.font = "35px Comic Sans MS";
+			ctx.fillStyle = "white";
+			ctx.textAlign = "center";
+			ctx.fillText("Health : " + player.health + " Goatees : " + player.goatee +"Ḡ", 350, 90);
+			ctx.fillText("Day : " + player.day, 150, 135);
+			ctx.fillText("Level : " + player.level, 150, 180);
+			ctx.fillText("Energy : " + player.energy, 350, 135);
+			ctx.fillText("Hunger : " + player.hunger, 350, 180);
+			ctx.fillText("Apples : x" + player.apples, 350, 225);
+			
+			ctx.fillText("Level up in " + (5 - shopWorkAmount) + " shifts", width - 250, height - 400);
+			
+			ctx.drawImage(ExitButton, width - 450, height - 150, 400, 100);
+			ctx.drawImage(WorkButton, width - 450, height - 300, 400, 100);
+			ctx.drawImage(BuyAppleButton, width - 900, height - 300, 400, 100);
+		}
+		if(gameState == "Home")
+		{
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.drawImage(PlayerBar, 50,0, 600, 300);
+			ctx.font = "35px Comic Sans MS";
+			ctx.fillStyle = "white";
+			ctx.textAlign = "center";
+			ctx.fillText("Health : " + player.health + " Goatees : " + player.goatee +"Ḡ", 350, 90);
+			ctx.fillText("Day : " + player.day, 150, 135);
+			ctx.fillText("Level : " + player.level, 150, 180);
+			ctx.fillText("Energy : " + player.energy, 350, 135);
+			ctx.fillText("Hunger : " + player.hunger, 350, 180);
+			ctx.fillText("Apples : x" + player.apples, 350, 225);		
+			
+			ctx.drawImage(ExitButton, width - 450, height - 150, 400, 100);
+			
+			if(player.energy < 100)
+			{
+				ctx.drawImage(SleepButton, width - 450, height - 350, 400, 100);	
+			}
+		}
+	};
+	
+	function checkPos(event)
+	{
+		coords = canvas.relMouseCoords(event);
+		MouseX = coords.x;
+		MouseY = coords.y;
+	};
+	
+	function checkClick(mouseEvent)
+	{
+		if(MouseX > ButtonX[0] && MouseX < (ButtonX[0] + ButtonWidth[0]))
+		{
+			if(MouseY > ButtonY[0] && MouseY < (ButtonY[0] + ButtonHeight[0]))
+			{
+				ButtonClicked = 1;
+				StartGame();
+			};
+		};
+		
+		if(MouseX > ButtonX[1] && MouseX < (ButtonX[1] + ButtonWidth[1]))
+		{
+			if(MouseY > ButtonY[1] && MouseY < (ButtonY[1] + ButtonHeight[1]))
+			{
+				ButtonClicked = 2;
+				StartGame();
+			};
+		};
+		if(MouseX > ButtonX[2] && MouseX < (ButtonX[2] + ButtonWidth[2]))
+		{
+			if(MouseY > ButtonY[2] && MouseY < (ButtonY[2] + ButtonHeight[2]))
+			{
+				ButtonClicked = 3;
+				StartGame();
+			};
+		};
+	};
+	
+	//Animation Functions
+	function PlayerAnimationFrame()
+	{
+		var elapsed = (Date.now() - startTimeMS)/1000;
+		startTimeMS = Date.now();
+
+		//only update frames when timer is below 0
+		frameTimer = frameTimer - elapsed;
+		if(frameTimer <= 0)
+		{
+			frameTimer = frameTimeMax;
+			frameX--;
+			if(frameX<0)
+			{
+			  frameX = frameXMax;
+			  //frameY++;
+			  //end of row, move down to next row in sheet
+			  //if(frameY>frameYMax)
+			  //{
+				  //frameY = 0;
+			  //}
+			}
+			frame++;
+			//reset frames to 0 in event that there are empty spaces on sprite sheet
+			if(frame > frameMax)
+			{
+			  frame = 0;
+			  frameX = 0;
+			  frameY = 0;
+			}
+		}	
+	}
+	
+	function HungerTimer()
+	{
+		var elapsed = (Date.now() - hStartTimeMS)/1000;
+		hStartTimeMS = Date.now();
+		HugerCurrentTime = HugerCurrentTime - elapsed;
+		if(HugerCurrentTime <= 0)
+		{	
+			HugerCurrentTime = HungerDefaultTime;
+			player.hunger--;
+			if(player.hunger <= 0)
+			{
+				KillPlayer();
+			}
+		}
+	}
+	
+	function FruitTimer(CurFruitTimer, TreeNumber)
+	{
+		var elapsed = (Date.now() - startTimeMS)/1000;
+		startTimeMS = Date.now();
+		CurFruitTimer = CurFruitTimer - elapsed;
+		if(CurFruitTimer <= 0)
+		{	
+			TreeHasFruit[TreeNumber].HasFruit = true;
+		}
+		else
+		{
+			FruitTimers[TreeNumber].Time = CurFruitTimer;
+		}
+	}
+</script>
+</body>
+</html>
